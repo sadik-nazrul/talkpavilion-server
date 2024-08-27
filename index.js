@@ -1,9 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+require("dotenv").config();
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken')
-require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require("stripe")(process.env.STRIPE_SECRETE_KEY);
+
+
 
 const app = express();
 const port = process.env.PORT || 8000
@@ -96,23 +99,80 @@ async function run() {
 
         /* +++Users Related API START */
         // Save a user data in database
-        app.put('/user', async (req, res) => {
-            const user = req.body
-            const query = { email: user?.email }
-            // Check user have on database or not
-            const isExist = await usersCollection.findOne(query)
-            if (isExist) return res.send(isExist)
+        // app.put('/user', async (req, res) => {
+        //     const user = req.body
+        //     const query = { email: user?.email }
+        //     // Check user have on database or not
+        //     const isExist = await usersCollection.findOne(query)
+        //     if (isExist) return res.send(isExist)
 
-            const options = { upsert: true }
+        //     const options = { upsert: true }
+        //     const updateUser = {
+        //         $set: {
+        //             ...user,
+        //             userSaveTime: Date.now()
+        //         }
+        //     }
+        //     const result = await usersCollection.updateOne(query, updateUser, options)
+        //     res.send(result)
+        // })
+
+        // Save or update a user data in the database
+        app.put('/user/:email', async (req, res) => {
+            const email = req.params.email;
+            const { role, status, transactionId } = req.body;
+            const query = { email: email };
+
+            const options = { upsert: true };
             const updateUser = {
                 $set: {
-                    ...user,
+                    role: role || "bronze", // Default to "bronze" if no role is provided
+                    status: status || "unpaid", // Default to "unpaid" if no status is provided
+                    transactionId: transactionId || null,
                     userSaveTime: Date.now()
                 }
+            };
+
+            try {
+                const result = await usersCollection.updateOne(query, updateUser, options);
+                res.send(result);
+            } catch (error) {
+                res.status(500).send({ error: 'Internal Server Error' });
             }
-            const result = await usersCollection.updateOne(query, updateUser, options)
-            res.send(result)
-        })
+        });
+
+        // Update user role and status after payment
+        app.patch('/user/update-payment', async (req, res) => {
+            const { email, transactionId } = req.body;
+
+            // Validate input
+            if (!email || !transactionId) {
+                return res.status(400).send({ error: 'Email and transaction ID are required' });
+            }
+
+            // Define the query and update
+            const query = { email };
+            const update = {
+                $set: {
+                    role: "gold",
+                    status: "paid",
+                    transactionId,
+                },
+            };
+
+            try {
+                const result = await usersCollection.updateOne(query, update);
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ error: 'User not found' });
+                }
+                res.send({ message: 'User updated successfully' });
+            } catch (error) {
+                res.status(500).send({ error: 'Internal Server Error' });
+            }
+        });
+
+
+
 
         // get all users data
         app.get('/users', async (req, res) => {
@@ -120,6 +180,39 @@ async function run() {
             res.send(result)
         })
         /* +++Users Related API END */
+
+        /* +++Stipe Payment related API STARD */
+
+        // Payment intent
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+
+            if (typeof price !== 'number' || isNaN(price)) {
+                return res.status(400).send({ error: 'Invalid price value' });
+            }
+
+            const amount = Math.round(price * 100); // Convert dollars to cents
+
+            try {
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: amount,
+                    currency: "usd",
+                    automatic_payment_methods: {
+                        enabled: true,
+                    },
+                });
+
+                res.send({
+                    clientSecret: paymentIntent.client_secret,
+                });
+            } catch (error) {
+                console.error('Error creating payment intent:', error);
+                res.status(500).send({ error: 'Internal Server Error' });
+            }
+        });
+
+
+        /* +++Stipe Payment related API END */
 
 
 
