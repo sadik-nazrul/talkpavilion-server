@@ -66,6 +66,39 @@ async function run() {
         const usersCollection = client.db('talkpavilion').collection('users')
         const blogsCollection = client.db('talkpavilion').collection('blogs')
 
+
+        // Post Limit Middleware
+        const postLimit = async (req, res, next) => {
+            const authorEmail = req.body.authorEmail;
+            const userEmail = req.body.userEmail
+            const limit = 5;
+
+
+            if (!authorEmail) {
+                return res.status(400).json({ success: false, message: 'Author email is required.' });
+            }
+
+            try {
+                const user = await usersCollection.findOne({ email: userEmail })
+                if (user && user?.role === 'gold') {
+                    return next()
+                }
+                const postCount = await blogsCollection.countDocuments({
+                    authorEmail: authorEmail
+                })
+                if (postCount < limit) {
+                    return next()
+                }
+                else {
+                    return res.status(426).send('you react your post limit')
+                }
+            }
+            catch (err) {
+                console.log(err.message);
+                return res.status(500).send({ message: "Internal Server Error" })
+            }
+        }
+
         /* +++JWT Related API START */
         // auth related api
         app.post('/jwt', async (req, res) => {
@@ -163,7 +196,7 @@ async function run() {
 
 
         /* +++Blog Related API START+++ */
-        app.post('/add-blog', async (req, res) => {
+        app.post('/add-blog', postLimit, async (req, res) => {
             const blog = req.body
             const result = await blogsCollection.insertOne(blog)
             res.send(result)
