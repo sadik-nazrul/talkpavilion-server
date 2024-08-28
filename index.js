@@ -23,22 +23,22 @@ app.use(express.json());
 app.use(cookieParser());
 
 
-// // Verify Token Middleware
-// const verifyToken = async (req, res, next) => {
-//     const token = req.cookies?.token
-//     console.log(token)
-//     if (!token) {
-//         return res.status(401).send({ message: 'unauthorized access' })
-//     }
-//     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-//         if (err) {
-//             console.log(err)
-//             return res.status(401).send({ message: 'unauthorized access' })
-//         }
-//         req.user = decoded
-//         next()
-//     })
-// }
+// Verify Token Middleware
+const verifyToken = async (req, res, next) => {
+    const token = req.cookies?.token
+    console.log('token==>', token)
+    if (!token) {
+        return res.status(401).send({ message: 'unauthorized access' })
+    }
+    jwt.verify(token, process.env.API_SECRET_TOKEN, (err, decoded) => {
+        if (err) {
+            console.log(err)
+            return res.status(401).send({ message: 'unauthorized access' })
+        }
+        req.user = decoded
+        next()
+    })
+}
 
 
 
@@ -67,56 +67,37 @@ async function run() {
 
         /* +++JWT Related API START */
         // auth related api
-        // app.post('/jwt', async (req, res) => {
-        //     const user = req.body
-        //     const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        //         expiresIn: '365d',
-        //     })
-        //     res
-        //         .cookie('token', token, {
-        //             httpOnly: true,
-        //             secure: process.env.NODE_ENV === 'production',
-        //             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-        //         })
-        //         .send({ success: true })
-        // })
-        // // Logout
-        // app.get('/logout', async (req, res) => {
-        //     try {
-        //         res
-        //             .clearCookie('token', {
-        //                 maxAge: 0,
-        //                 secure: process.env.NODE_ENV === 'production',
-        //                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-        //             })
-        //             .send({ success: true })
-        //         console.log('Logout successful')
-        //     } catch (err) {
-        //         res.status(500).send(err)
-        //     }
-        // })
+        app.post('/jwt', async (req, res) => {
+            const user = req.body
+            const token = jwt.sign(user, process.env.API_SECRET_TOKEN, {
+                expiresIn: '365d',
+            })
+            res
+                .cookie('token', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+                })
+                .send({ success: true })
+        })
+        // Logout
+        app.get('/logout', async (req, res) => {
+            try {
+                res
+                    .clearCookie('token', {
+                        maxAge: 0,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+                    })
+                    .send({ success: true })
+                console.log('Logout successful')
+            } catch (err) {
+                res.status(500).send(err)
+            }
+        })
         /* +++JWT Related API END */
 
         /* +++Users Related API START */
-        // Save a user data in database
-        // app.put('/user', async (req, res) => {
-        //     const user = req.body
-        //     const query = { email: user?.email }
-        //     // Check user have on database or not
-        //     const isExist = await usersCollection.findOne(query)
-        //     if (isExist) return res.send(isExist)
-
-        //     const options = { upsert: true }
-        //     const updateUser = {
-        //         $set: {
-        //             ...user,
-        //             userSaveTime: Date.now()
-        //         }
-        //     }
-        //     const result = await usersCollection.updateOne(query, updateUser, options)
-        //     res.send(result)
-        // })
-
         // Save or update a user data in the database
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email;
@@ -141,74 +122,43 @@ async function run() {
             }
         });
 
-        // Update user role and status after payment
-        app.patch('/user/update-payment', async (req, res) => {
-            const { email, transactionId } = req.body;
-
-            // Validate input
-            if (!email || !transactionId) {
-                return res.status(400).send({ error: 'Email and transaction ID are required' });
-            }
-
-            // Define the query and update
-            const query = { email };
-            const update = {
-                $set: {
-                    role: "gold",
-                    status: "paid",
-                    transactionId,
-                },
-            };
-
-            try {
-                const result = await usersCollection.updateOne(query, update);
-                if (result.matchedCount === 0) {
-                    return res.status(404).send({ error: 'User not found' });
-                }
-                res.send({ message: 'User updated successfully' });
-            } catch (error) {
-                res.status(500).send({ error: 'Internal Server Error' });
-            }
-        });
-
-
-
-
         // get all users data
         app.get('/users', async (req, res) => {
             const result = await usersCollection.find().toArray()
             res.send(result)
         })
+
+
+        // get user by email
+        app.get('/user/:email', async (req, res) => {
+            const email = req.params.email
+            const result = await usersCollection.findOne({ email })
+            res.send(result)
+        })
+
+
         /* +++Users Related API END */
 
         /* +++Stipe Payment related API STARD */
-
         // Payment intent
-        app.post('/create-payment-intent', async (req, res) => {
+        app.post("/create-payment-intent", async (req, res) => {
             const { price } = req.body;
+            const totalPrice = Math.round(price * 100); // Convert dollars to cents
 
-            if (typeof price !== 'number' || isNaN(price)) {
-                return res.status(400).send({ error: 'Invalid price value' });
-            }
+            // Create a PaymentIntent with the order amount and currency
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: totalPrice,
+                currency: "usd",
+                // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+            });
 
-            const amount = Math.round(price * 100); // Convert dollars to cents
 
-            try {
-                const paymentIntent = await stripe.paymentIntents.create({
-                    amount: amount,
-                    currency: "usd",
-                    automatic_payment_methods: {
-                        enabled: true,
-                    },
-                });
-
-                res.send({
-                    clientSecret: paymentIntent.client_secret,
-                });
-            } catch (error) {
-                console.error('Error creating payment intent:', error);
-                res.status(500).send({ error: 'Internal Server Error' });
-            }
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
         });
 
 
