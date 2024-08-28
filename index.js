@@ -64,6 +64,7 @@ async function run() {
 
     try {
         const usersCollection = client.db('talkpavilion').collection('users')
+        const blogsCollection = client.db('talkpavilion').collection('blogs')
 
         /* +++JWT Related API START */
         // auth related api
@@ -90,12 +91,12 @@ async function run() {
                         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
                     })
                     .send({ success: true })
-                console.log('Logout successful')
             } catch (err) {
                 res.status(500).send(err)
             }
         })
         /* +++JWT Related API END */
+
 
         /* +++Users Related API START */
         // Save or update a user data in the database
@@ -128,16 +129,14 @@ async function run() {
             res.send(result)
         })
 
-
         // get user by email
         app.get('/user/:email', async (req, res) => {
             const email = req.params.email
             const result = await usersCollection.findOne({ email })
             res.send(result)
         })
-
-
         /* +++Users Related API END */
+
 
         /* +++Stipe Payment related API STARD */
         // Payment intent
@@ -160,9 +159,16 @@ async function run() {
                 clientSecret: paymentIntent.client_secret,
             });
         });
-
-
         /* +++Stipe Payment related API END */
+
+
+        /* +++Blog Related API START+++ */
+        app.post('/add-blog', async (req, res) => {
+            const blog = req.body
+            const result = await blogsCollection.insertOne(blog)
+            res.send(result)
+        })
+        /* +++POST Related API END+++ */
 
 
 
