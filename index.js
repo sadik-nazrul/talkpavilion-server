@@ -247,6 +247,26 @@ async function run() {
             const result = await blogsCollection.insertOne(blog)
             res.send(result)
         });
+
+        // Get all tags
+        app.get('/tags', async (req, res) => {
+            const tags = await blogsCollection.aggregate([
+                { $unwind: '$tags' },
+                { $group: { _id: null, uniqueTags: { $addToSet: '$tags' } } },
+                { $project: { _id: 0, uniqueTags: 1 } }
+            ]).toArray()
+
+            const tagsArr = await (tags[0].uniqueTags)
+            res.send(tagsArr)
+        })
+        // find blog by tag
+        app.get('/blog', async (req, res) => {
+            const { tag } = req.query;
+            const query = { 'tags.value': tag }
+            const result = await blogsCollection.find(query).toArray()
+            res.send(result)
+        })
+
         /* +++POST Related API END+++ */
 
 
