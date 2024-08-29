@@ -134,14 +134,15 @@ async function run() {
         // Save or update a user data in the database
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email;
-            const { role, status, transactionId } = req.body;
+            const { name, role, status, transactionId } = req.body;
             const query = { email: email };
 
             const options = { upsert: true };
             const updateUser = {
                 $set: {
-                    role: role || "bronze", // Default to "bronze" if no role is provided
-                    status: status || "unpaid", // Default to "unpaid" if no status is provided
+                    name: name,
+                    role: role || "bronze",
+                    status: status || "unpaid",
                     transactionId: transactionId || null,
                     userSaveTime: Date.now()
                 }
@@ -195,7 +196,13 @@ async function run() {
 
 
         /* +++Blog Related API START+++ */
+        // get all blogs
         app.get('/blogs', async (req, res) => {
+            const result = await blogsCollection.find().toArray()
+            res.send(result)
+        })
+        // Get blogs by specific user
+        app.get('/blogsuser', verifyToken, async (req, res) => {
             const email = req.query.email;
             const query = { authorEmail: email };
             const result = await blogsCollection.find(query).toArray()
