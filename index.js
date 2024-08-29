@@ -64,8 +64,9 @@ async function run() {
     try {
         const usersCollection = client.db('talkpavilion').collection('users')
         const blogsCollection = client.db('talkpavilion').collection('blogs')
+        const anouncementsCollection = client.db('talkpavilion').collection('anouncements')
 
-
+        /* +++MidleWares START+++ */
         // Post Limit Middleware
         const postLimit = async (req, res, next) => {
             const authorEmail = req.body.authorEmail;
@@ -96,7 +97,6 @@ async function run() {
                 return res.status(500).send({ message: "Internal Server Error" })
             }
         }
-
         // Verify admin Middleware
         const verifyAdmin = async (req, res, next) => {
             const adminEmail = req.user.email
@@ -117,6 +117,8 @@ async function run() {
             }
         }
 
+        /* +++MidleWares END+++ */
+
         /* +++JWT Related API START */
         // auth related api
         app.post('/jwt', async (req, res) => {
@@ -131,7 +133,7 @@ async function run() {
                     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
                 })
                 .send({ success: true })
-        })
+        });
         // Logout
         app.get('/logout', async (req, res) => {
             try {
@@ -145,7 +147,7 @@ async function run() {
             } catch (err) {
                 res.status(500).send(err)
             }
-        })
+        });
         /* +++JWT Related API END */
 
 
@@ -174,20 +176,27 @@ async function run() {
                 res.status(500).send({ error: 'Internal Server Error' });
             }
         });
-
         // get all users data
         app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray()
             res.send(result)
-        })
-
+        });
         // get user by email
         app.get('/user/:email', async (req, res) => {
             const email = req.params.email
             const result = await usersCollection.findOne({ email })
             res.send(result)
-        })
+        });
         /* +++Users Related API END */
+
+        /* +++Announcement Related API START */
+        // Add Announcement
+        app.post('/announce', async (req, res) => {
+            const announce = req.body
+            const result = await anouncementsCollection.insertOne(announce)
+            res.send(result)
+        })
+        /* +++Announcement Related API END */
 
 
         /* +++Stipe Payment related API STARD */
@@ -219,20 +228,20 @@ async function run() {
         app.get('/blogs', async (req, res) => {
             const result = await blogsCollection.find().toArray()
             res.send(result)
-        })
+        });
         // Get blogs by specific user
         app.get('/blogsuser', verifyToken, async (req, res) => {
             const email = req.query.email;
             const query = { authorEmail: email };
             const result = await blogsCollection.find(query).toArray()
             res.send(result)
-        })
-
+        });
+        // Add Blog
         app.post('/add-blog', postLimit, async (req, res) => {
             const blog = req.body
             const result = await blogsCollection.insertOne(blog)
             res.send(result)
-        })
+        });
         /* +++POST Related API END+++ */
 
 
