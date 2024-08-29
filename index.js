@@ -191,11 +191,16 @@ async function run() {
 
         /* +++Announcement Related API START */
         // Add Announcement
-        app.post('/announce', async (req, res) => {
+        app.post('/announce', verifyToken, verifyAdmin, async (req, res) => {
             const announce = req.body
             const result = await anouncementsCollection.insertOne(announce)
             res.send(result)
-        })
+        });
+        // Get all announcements
+        app.get('/announcements', async (req, res) => {
+            const result = await anouncementsCollection.find().toArray();
+            res.send(result);
+        });
         /* +++Announcement Related API END */
 
 
