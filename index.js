@@ -26,7 +26,6 @@ app.use(cookieParser());
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
     const token = req.cookies?.token
-    console.log('token==>', token)
     if (!token) {
         return res.status(401).send({ message: 'unauthorized access' })
     }
@@ -75,7 +74,7 @@ async function run() {
 
 
             if (!authorEmail) {
-                return res.status(400).json({ success: false, message: 'Author email is required.' });
+                return res.status(400).send({ message: 'Author email is required.' });
             }
             try {
                 const user = await usersCollection.findOne({ email: userEmail })
@@ -94,6 +93,26 @@ async function run() {
             }
             catch (err) {
                 console.log(err.message);
+                return res.status(500).send({ message: "Internal Server Error" })
+            }
+        }
+
+        // Verify admin Middleware
+        const verifyAdmin = async (req, res, next) => {
+            const adminEmail = req.user.email
+            if (!adminEmail) {
+                return res.status(400).send({ message: 'Author email is required.' });
+            }
+            try {
+                const admin = await usersCollection.findOne({ email: adminEmail })
+                if (admin && admin?.role === 'admin') {
+                    return next()
+                }
+                else {
+                    return res.status(401).send({ message: 'Unauthorized Access' })
+                }
+            }
+            catch (err) {
                 return res.status(500).send({ message: "Internal Server Error" })
             }
         }
@@ -157,7 +176,7 @@ async function run() {
         });
 
         // get all users data
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray()
             res.send(result)
         })
