@@ -77,10 +77,9 @@ async function run() {
             if (!authorEmail) {
                 return res.status(400).json({ success: false, message: 'Author email is required.' });
             }
-
             try {
                 const user = await usersCollection.findOne({ email: userEmail })
-                if (user && user?.role === 'gold') {
+                if (user && user?.role === 'gold' || user && user?.role === 'admin') {
                     return next()
                 }
                 const postCount = await blogsCollection.countDocuments({
@@ -196,6 +195,13 @@ async function run() {
 
 
         /* +++Blog Related API START+++ */
+        app.get('/blogs', async (req, res) => {
+            const email = req.query.email;
+            const query = { authorEmail: email };
+            const result = await blogsCollection.find(query).toArray()
+            res.send(result)
+        })
+
         app.post('/add-blog', postLimit, async (req, res) => {
             const blog = req.body
             const result = await blogsCollection.insertOne(blog)
