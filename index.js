@@ -13,7 +13,7 @@ const port = process.env.PORT || 8000
 
 // middleware
 const corsOptions = {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "https://talkpavilion-94167.firebaseapp.com"],
     credentials: true,
     optionSuccessStatus: 200,
 };
@@ -229,46 +229,46 @@ async function run() {
 
 
         /* +++Blog Related API START+++ */
-        // get all blogs
-        app.get('/blogs', async (req, res) => {
+        // // get all blogs
+        // app.get('/blogs', async (req, res) => {
+        //     const result = await blogsCollection.find().toArray()
+        //     res.send(result)
+        // })
+
+        app.get('/sortblogs', async (req, res) => {
             const sortOrder = req.query.sortOrder === 'ascending' ? 1 : -1;
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 5;
             const skip = (page - 1) * limit;
 
             const blogs = await blogsCollection.aggregate([
+
                 {
                     $addFields: {
-                        upVoteInt: { $toInt: '$upVote' },
-                        downVoteInt: { $toInt: '$downVote' }
+                        voteDifferance: { $subtract: ['$upVote', '$downVote'] }
                     }
                 },
                 {
-                    $addFields: {
-                        voteDifference: { $subtract: ['$upVoteInt', '$downVoteInt'] }
-                    }
-                },
-                {
-                    $sort: { voteDifference: sortOrder }
+                    $sort: { voteDifferance: sortOrder }
                 },
                 {
                     $skip: skip
                 },
                 {
                     $limit: limit
-                },
-                {
-                    $project: {
-                        upVoteInt: 0,
-                        downVoteInt: 0
-                    }
                 }
             ]).toArray();
-
             const totalBlogs = await blogsCollection.countDocuments();
-            const totalPages = Math.ceil(totalBlogs / limit)
-
+            const totalPages = Math.ceil(totalBlogs / limit);
             res.send({ blogs, totalPages })
+        })
+
+        // Get single blog by ID
+        app.get('/blog/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await blogsCollection.findOne(query);
+            res.send(result);
         });
         // Get blogs by specific user
         app.get('/blogsuser', verifyToken, async (req, res) => {
@@ -280,9 +280,13 @@ async function run() {
         // Add Blog
         app.post('/add-blog', postLimit, async (req, res) => {
             const blog = req.body
+            // Convert upVote and downVote to numbers
+            blog.upVote = Number(blog.upVote);
+            blog.downVote = Number(blog.downVote);
             const result = await blogsCollection.insertOne(blog)
             res.send(result)
         });
+
 
         // Get all tags
         app.get('/tags', async (req, res) => {
