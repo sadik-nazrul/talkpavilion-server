@@ -231,8 +231,44 @@ async function run() {
         /* +++Blog Related API START+++ */
         // get all blogs
         app.get('/blogs', async (req, res) => {
-            const result = await blogsCollection.find().toArray()
-            res.send(result)
+            const sortOrder = req.query.sortOrder === 'ascending' ? 1 : -1;
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 5;
+            const skip = (page - 1) * limit;
+
+            const blogs = await blogsCollection.aggregate([
+                {
+                    $addFields: {
+                        upVoteInt: { $toInt: '$upVote' },
+                        downVoteInt: { $toInt: '$downVote' }
+                    }
+                },
+                {
+                    $addFields: {
+                        voteDifference: { $subtract: ['$upVoteInt', '$downVoteInt'] }
+                    }
+                },
+                {
+                    $sort: { voteDifference: sortOrder }
+                },
+                {
+                    $skip: skip
+                },
+                {
+                    $limit: limit
+                },
+                {
+                    $project: {
+                        upVoteInt: 0,
+                        downVoteInt: 0
+                    }
+                }
+            ]).toArray();
+
+            const totalBlogs = await blogsCollection.countDocuments();
+            const totalPages = Math.ceil(totalBlogs / limit)
+
+            res.send({ blogs, totalPages })
         });
         // Get blogs by specific user
         app.get('/blogsuser', verifyToken, async (req, res) => {
@@ -258,14 +294,14 @@ async function run() {
 
             const tagsArr = await (tags[0].uniqueTags)
             res.send(tagsArr)
-        })
+        });
         // find blog by tag
         app.get('/blog', async (req, res) => {
             const { tag } = req.query;
             const query = { 'tags.value': tag }
             const result = await blogsCollection.find(query).toArray()
             res.send(result)
-        })
+        });
 
         /* +++POST Related API END+++ */
 
