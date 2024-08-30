@@ -262,6 +262,7 @@ async function run() {
             const totalPages = Math.ceil(totalBlogs / limit);
             res.send({ blogs, totalPages })
         });
+
         // Get single blog by ID
         app.get('/blog/:id', async (req, res) => {
             const id = req.params.id;
