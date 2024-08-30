@@ -229,14 +229,14 @@ async function run() {
 
 
         /* +++Blog Related API START+++ */
-        // // get all blogs
-        // app.get('/blogs', async (req, res) => {
-        //     const result = await blogsCollection.find().toArray()
-        //     res.send(result)
-        // })
-
+        // get all blogs
+        app.get('/blogs', async (req, res) => {
+            const result = await blogsCollection.find().toArray()
+            res.send(result)
+        });
+        // Queried blogs
         app.get('/sortblogs', async (req, res) => {
-            const sortOrder = req.query.sortOrder === 'ascending' ? 1 : -1;
+            const sortOrder = -1;
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 5;
             const skip = (page - 1) * limit;
@@ -261,8 +261,7 @@ async function run() {
             const totalBlogs = await blogsCollection.countDocuments();
             const totalPages = Math.ceil(totalBlogs / limit);
             res.send({ blogs, totalPages })
-        })
-
+        });
         // Get single blog by ID
         app.get('/blog/:id', async (req, res) => {
             const id = req.params.id;
@@ -285,6 +284,21 @@ async function run() {
             blog.downVote = Number(blog.downVote);
             const result = await blogsCollection.insertOne(blog)
             res.send(result)
+        });
+        // blog vote update
+        app.put('/vote', async (req, res) => {
+            const vote = req.body
+            const blog = await blogsCollection.findOne({ _id: new ObjectId(vote?.id) })
+            if (!blog) {
+                return res.status(404).send('Blog not found');
+            }
+            const updateField = vote?.vote === 1 ? { $inc: { upVote: 1 } } : { $inc: { downVote: 1 } }
+            const result = await blogsCollection.updateOne(
+                { _id: new ObjectId(vote.id) },
+                updateField
+            )
+            res.send(result)
+
         });
 
 
