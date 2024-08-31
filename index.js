@@ -232,8 +232,27 @@ async function run() {
         /* +++Blog Related API START+++ */
         // get all blogs
         app.get('/blogs', async (req, res) => {
-            const result = await blogsCollection.find().toArray()
-            res.send(result)
+            // Get blogs
+            const blogs = await blogsCollection.find().toArray()
+
+            // get all comments
+            const comments = await commentsCollection.find().toArray()
+
+            // commentmap
+            const commentsMap = comments.reduce((acc, comment) => {
+                if (!acc[comment.postId]) {
+                    acc[comment.postId] = []
+                }
+                acc[comment.postId].push(comment)
+                return acc;
+            }, {});
+
+            // add comment each blog post
+            const blogsWithComment = blogs.map(blog => ({
+                ...blog,
+                comments: commentsMap[blog._id] || []
+            }))
+            res.send(blogsWithComment)
         });
         // Queried blogs
         app.get('/sortblogs', async (req, res) => {
@@ -319,25 +338,14 @@ async function run() {
             const result = await blogsCollection.find(query).toArray()
             res.send(result)
         });
-
         // comment post endpoint
         app.post('/comment', async (req, res) => {
             const comment = req.body;
             console.log(comment);
             const result = await commentsCollection.insertOne(comment);
             res.send(result)
-
         });
-        // Get comment for showing
-        app.get('/blog/:id/comments', async (req, res) => {
-            const postId = req.params.id;
-            const comments = await commentsCollection.find({ postId: postId }).toArray();
-            await blogsCollection.findOne({ _id: new ObjectId(postId) });
-            const result = {
-                comments
-            }
-            res.send(result)
-        })
+
         /* +++POST Related API END+++ */
 
 
