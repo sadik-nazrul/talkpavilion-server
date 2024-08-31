@@ -202,6 +202,13 @@ async function run() {
             const result = await anouncementsCollection.find().toArray();
             res.send(result);
         });
+        // Delete Announcement
+        app.delete('/announcement/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await anouncementsCollection.deleteOne(query);
+            res.send(result);
+        })
         /* +++Announcement Related API END */
 
 
