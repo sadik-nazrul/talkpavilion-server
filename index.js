@@ -13,7 +13,7 @@ const port = process.env.PORT || 8000
 
 // middleware
 const corsOptions = {
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://talkpavilion-94167.firebaseapp.com"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "https://talkpavilion-94167.firebaseapp.com", "https://talkpavilion-94167.web.app"],
     credentials: true,
     optionSuccessStatus: 200,
 };
@@ -65,6 +65,7 @@ async function run() {
         const usersCollection = client.db('talkpavilion').collection('users')
         const blogsCollection = client.db('talkpavilion').collection('blogs')
         const anouncementsCollection = client.db('talkpavilion').collection('anouncements')
+        const commentsCollection = client.db('talkpavilion').collection('comments')
 
         /* +++MidleWares START+++ */
         // Post Limit Middleware
@@ -262,7 +263,6 @@ async function run() {
             const totalPages = Math.ceil(totalBlogs / limit);
             res.send({ blogs, totalPages })
         });
-
         // Get single blog by ID
         app.get('/blog/:id', async (req, res) => {
             const id = req.params.id;
@@ -301,8 +301,6 @@ async function run() {
             res.send(result)
 
         });
-
-
         // Get all tags
         app.get('/tags', async (req, res) => {
             const tags = await blogsCollection.aggregate([
@@ -322,6 +320,24 @@ async function run() {
             res.send(result)
         });
 
+        // comment post endpoint
+        app.post('/comment', async (req, res) => {
+            const comment = req.body;
+            console.log(comment);
+            const result = await commentsCollection.insertOne(comment);
+            res.send(result)
+
+        });
+        // Get comment for showing
+        app.get('/blog/:id/comments', async (req, res) => {
+            const postId = req.params.id;
+            const comments = await commentsCollection.find({ postId: postId }).toArray();
+            await blogsCollection.findOne({ _id: new ObjectId(postId) });
+            const result = {
+                comments
+            }
+            res.send(result)
+        })
         /* +++POST Related API END+++ */
 
 
