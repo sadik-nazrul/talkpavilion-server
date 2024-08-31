@@ -348,10 +348,16 @@ async function run() {
         // comment post endpoint
         app.post('/comment', async (req, res) => {
             const comment = req.body;
-            console.log(comment);
             const result = await commentsCollection.insertOne(comment);
             res.send(result)
         });
+        // Blog delete
+        app.delete('/blogs/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await blogsCollection.deleteOne(query);
+            res.send(result)
+        })
 
         /* +++POST Related API END+++ */
 
