@@ -237,29 +237,39 @@ async function run() {
 
 
         /* +++Blog Related API START+++ */
-        // get all blogs
-        app.get('/blogs', async (req, res) => {
-            // Get blogs
-            const blogs = await blogsCollection.find().toArray()
+        // Utility function for get blog data with comments
+        const getBlogsWithComments = async (query = {}) => {
+            const blogs = await blogsCollection.find(query).toArray();
+            // Get all comments
+            const comments = await commentsCollection.find().toArray();
 
-            // get all comments
-            const comments = await commentsCollection.find().toArray()
-
-            // commentmap
+            // Create a map of comments by postId
             const commentsMap = comments.reduce((acc, comment) => {
                 if (!acc[comment.postId]) {
-                    acc[comment.postId] = []
+                    acc[comment.postId] = [];
                 }
-                acc[comment.postId].push(comment)
+                acc[comment.postId].push(comment);
                 return acc;
             }, {});
 
-            // add comment each blog post
-            const blogsWithComment = blogs.map(blog => ({
+            // Add comments to each blog post and remove unwanted fields
+            return blogs.map(blog => ({
                 ...blog,
+                authorEmail: undefined,
+                authorPhoto: undefined,
+                authorName: undefined,
+                postDescription: undefined,
+                upVote: undefined,
+                downVote: undefined,
+                tags: undefined,
+                createdAt: undefined,
                 comments: commentsMap[blog._id] || []
-            }))
-            res.send(blogsWithComment)
+            }));
+        };
+        // get all blogs
+        app.get('/blogs', async (req, res) => {
+            const result = await getBlogsWithComments();
+            res.send(result);
         });
         // Queried blogs
         app.get('/sortblogs', async (req, res) => {
@@ -300,8 +310,9 @@ async function run() {
         app.get('/blogsuser', verifyToken, async (req, res) => {
             const email = req.query.email;
             const query = { authorEmail: email };
-            const result = await blogsCollection.find(query).toArray()
-            res.send(result)
+            const result = await getBlogsWithComments(query);
+            res.send(result);
+
         });
         // Add Blog
         app.post('/add-blog', postLimit, async (req, res) => {
