@@ -259,8 +259,6 @@ async function run() {
                 authorPhoto: undefined,
                 authorName: undefined,
                 postDescription: undefined,
-                upVote: undefined,
-                downVote: undefined,
                 tags: undefined,
                 createdAt: undefined,
                 comments: commentsMap[blog._id] || []
@@ -356,18 +354,34 @@ async function run() {
             const result = await blogsCollection.find(query).toArray()
             res.send(result)
         });
-        // comment post endpoint
-        app.post('/comment', async (req, res) => {
-            const comment = req.body;
-            const result = await commentsCollection.insertOne(comment);
-            res.send(result)
-        });
         // Blog delete
         app.delete('/blogs/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await blogsCollection.deleteOne(query);
             res.send(result)
+        })
+        // comment post endpoint
+        app.post('/comment', async (req, res) => {
+            const comment = req.body;
+            const result = await commentsCollection.insertOne(comment);
+            res.send(result)
+        });
+        // update comment
+        app.put('/comment/:id', async (req, res) => {
+            const id = req.params.id;
+            const { reply } = req.body
+            const query = { _id: new ObjectId(id) }
+            console.log(reply, ' this id:', query);
+            const options = { upsert: true };
+            const updateComment = {
+                $set: {
+                    reply: reply
+                }
+            }
+            const result = await commentsCollection.updateOne(query, updateComment, options);
+            res.send(result)
+
         })
 
         /* +++POST Related API END+++ */
