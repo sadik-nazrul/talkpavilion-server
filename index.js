@@ -157,6 +157,8 @@ async function run() {
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email;
             const { name, role, status, transactionId } = req.body;
+            console.log(name);
+
             const query = { email: email };
 
             const options = { upsert: true };
@@ -176,6 +178,23 @@ async function run() {
             } catch (error) {
                 res.status(500).send({ error: 'Internal Server Error' });
             }
+        });
+
+        // Make admin
+        app.put('/make-admin/:email', verifyToken, verifyAdmin, async (req, res) => {
+            const email = req.params.email;
+            const { role } = req.body;
+            const query = { email: email };
+            const options = { upsert: true };
+            const updateUser = {
+                $set: {
+                    role: role
+                }
+            };
+
+            const result = await usersCollection.updateOne(query, updateUser, options);
+            res.send(result);
+
         });
         // get all users data
         app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
