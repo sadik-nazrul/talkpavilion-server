@@ -183,7 +183,7 @@ async function run() {
             res.send(result)
         });
         // get user by email
-        app.get('/user/:email', verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/user/:email', async (req, res) => {
             const email = req.params.email
             const result = await usersCollection.findOne({ email })
             res.send(result)
@@ -338,7 +338,6 @@ async function run() {
             // console.log(result);
 
             res.send(result)
-
         });
         // Get all tags
         app.get('/tags', async (req, res) => {
