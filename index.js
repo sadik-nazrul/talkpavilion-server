@@ -13,7 +13,7 @@ const port = process.env.PORT || 8000
 
 // middleware
 const corsOptions = {
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://talkpavilion-94167.firebaseapp.com", "https://talkpavilion-94167.web.app"],
+    origin: ["http://localhost:5173", "https://talkpavilion-94167.firebaseapp.com", "https://talkpavilion-94167.web.app"],
     credentials: true,
     optionSuccessStatus: 200,
 };
@@ -183,7 +183,7 @@ async function run() {
             res.send(result)
         });
         // get user by email
-        app.get('/user/:email', async (req, res) => {
+        app.get('/user/:email', verifyToken, verifyAdmin, async (req, res) => {
             const email = req.params.email
             const result = await usersCollection.findOne({ email })
             res.send(result)
@@ -322,17 +322,21 @@ async function run() {
             res.send(result)
         });
         // blog vote update
-        app.put('/vote', async (req, res) => {
+        app.put('/vote', verifyToken, async (req, res) => {
             const vote = req.body
             const blog = await blogsCollection.findOne({ _id: new ObjectId(vote?.id) })
             if (!blog) {
                 return res.status(404).send('Blog not found');
             }
             const updateField = vote?.vote === 1 ? { $inc: { upVote: 1 } } : { $inc: { downVote: 1 } }
+
+
             const result = await blogsCollection.updateOne(
                 { _id: new ObjectId(vote.id) },
                 updateField
             )
+            // console.log(result);
+
             res.send(result)
 
         });
