@@ -66,6 +66,7 @@ async function run() {
         const blogsCollection = client.db('talkpavilion').collection('blogs')
         const anouncementsCollection = client.db('talkpavilion').collection('anouncements')
         const commentsCollection = client.db('talkpavilion').collection('comments')
+        const subscribersCollection = client.db('talkpavilion').collection('subscribers')
 
         /* +++MidleWares START+++ */
         // Post Limit Middleware
@@ -120,36 +121,28 @@ async function run() {
 
         /* +++MidleWares END+++ */
 
-        /* +++JWT Related API START */
-        // auth related api
-        app.post('/jwt', async (req, res) => {
-            const user = req.body
-            const token = jwt.sign(user, process.env.API_SECRET_TOKEN, {
-                expiresIn: '365d',
-            })
-            res
-                .cookie('token', token, {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-                })
-                .send({ success: true })
-        });
-        // Logout
-        app.get('/logout', async (req, res) => {
-            try {
-                res
-                    .clearCookie('token', {
-                        maxAge: 0,
-                        secure: process.env.NODE_ENV === 'production',
-                        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-                    })
-                    .send({ success: true })
-            } catch (err) {
-                res.status(500).send(err)
+
+        /* Subscription Related API START */
+        app.put('/subscribers', async (req, res) => {
+            const { email } = req.body;
+            const existingSubscriber = await subscribersCollection.findOne({ email });
+
+            if (existingSubscriber) {
+                // Return a 200 response with a custom message instead of an error status
+                return res.status(200).send({ message: 'You are already subscribed' });
             }
+
+            const result = await subscribersCollection.insertOne({ email });
+            res.send({ success: true, message: 'Subscription successful', result });
         });
-        /* +++JWT Related API END */
+
+        app.get('/subscribers', verifyToken, verifyAdmin, async (req, res) => {
+            const result = await subscribersCollection.find().toArray();
+            res.send(result)
+        })
+
+        /* Subscription Related API END */
+
 
 
         /* +++Users Related API START */
